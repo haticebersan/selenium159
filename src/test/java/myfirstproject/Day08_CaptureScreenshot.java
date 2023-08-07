@@ -30,6 +30,5 @@ public class Day08_CaptureScreenshot extends TestBase {
         assertTrue(resultText.contains("United Kingdom"));
         captureScreenShotEntirePage();
 
-
     }
 }

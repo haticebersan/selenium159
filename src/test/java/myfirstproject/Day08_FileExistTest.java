@@ -13,7 +13,7 @@ public class Day08_FileExistTest extends TestBase {
     @Test
     public void isExist() {
          //Class: FileExistTest
-         // Method: isExist
+         //Method: isExist
          //Pick a file on your desktop
         // And verify if that file exists on your computer or not
 
