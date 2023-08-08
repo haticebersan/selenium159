@@ -4,23 +4,26 @@ package myfirstproject.utilities;
 import com.aventstack.extentreports.ExtentReports;
 import com.aventstack.extentreports.ExtentTest;
 import com.aventstack.extentreports.reporter.ExtentHtmlReporter;
+import com.github.javafaker.Faker;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.*;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.support.ui.ExpectedCondition;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.Random;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public abstract class TestBase {
     //This class is used to run @Before and @After methods automatically in the child class
@@ -138,6 +141,21 @@ public abstract class TestBase {
            JavascriptExecutor js = (JavascriptExecutor) driver;
            js.executeScript("arguments[0].click();", element);
        }
+    //    EXPLICITLY WAIT FOR ELEMENT TO BE VISIBLE, SCROLL INTO THE ELEMENT, THEN CLICK BY JS
+    public static void clickWithTimeoutByJS(WebElement element) {
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", waitForVisibility(element,5));
+        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", element);
+    }
+    public static void clickWithTimeOut(WebElement element, int timeout) {
+        for (int i = 0; i < timeout; i++) {
+            try {
+                element.click();
+                return;
+            } catch (WebDriverException e) {
+                waitFor(1);
+            }
+        }
+    }
 
     /*
     scroll into specific elements
@@ -269,6 +287,260 @@ public abstract class TestBase {
         }
     }
     //======Fluent Wait====
-    // params : xpath ...
+    // params : xpath of teh element , max timeout in seconds, polling in second
+    public static WebElement fluentWait(String xpath, int withTimeout, int pollingEvery) {
+        FluentWait<WebDriver> wait = new FluentWait<WebDriver>(driver)
+                .withTimeout(Duration.ofSeconds(withTimeout))//Wait 3 second each time
+                .pollingEvery(Duration.ofSeconds(pollingEvery))//Check for the element every 1 second
+                .withMessage("Ignoring No Such Element Exception")
+                .ignoring(NoSuchElementException.class);
+        WebElement element = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(xpath)));
+        return element;
+    }
+
+
+    //    RADIO BUTTON
+    public void clickRadioByIndex(int index){
+        int numOfRadio =driver.findElements(By.xpath("//input[@type='radio']")).size();
+        for (int i=0;i<numOfRadio;i++){
+            if (!driver.findElements(By.xpath("//input[@type='radio']")).get(index).isSelected()) {
+                driver.findElements(By.xpath("//input[@type='radio']")).get(index).click();
+            }
+        }
+    }
+
+    //    CHECKBOX BUTTON
+    public void clickCheckboxByIndex(int index){
+        int numOfRadio =driver.findElements(By.xpath("//input[@type='checkbox']")).size();
+        try{
+            for (int i=0;i<numOfRadio;i++){
+                if (!driver.findElements(By.xpath("//input[@type='checkbox']")).get(index).isSelected()) {
+                    driver.findElements(By.xpath("//input[@type='checkbox']")).get(index).click();
+                }
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+    //    DROPDOWN
+//    USE THIS ONE TO SELECT FROM A DROPDOWN
+    public static void selectByVisibleText(WebElement element, String text){
+        Select select =new Select(element);
+        for (int i =0;i<select.getOptions().size();i++){
+            if(select.getOptions().get(i).getText().equalsIgnoreCase(text)){
+                select.getOptions().get(i).click();
+                break;
+            }
+        }
+    }
+
+    public static void selectByIndex(WebElement element, int index){
+        Select objSelect =new Select(element);
+        objSelect.selectByIndex(index);
+    }
+
+    public static void selectByValue(WebElement element, String value) {
+        Select objSelect = new Select(element);
+        objSelect.selectByValue(value);
+    }
+
+    public static void selectDropdownByValue(WebElement element,String textOfDropdown){
+        List<WebElement> options = element.findElements(By.tagName("option"));
+        for (WebElement option : options){
+            System.out.println(option.getText());
+            if (option.getText().equals(textOfDropdown)){
+                option.click();
+                break;
+            }
+        }
+    }
+    //  DROPDOWN
+    /**
+     * Selects a random value from a dropdown list and returns the selected Web Element
+     * @param select
+     * @return
+     */
+    public static WebElement selectRandomTextFromDropdown(Select select) {
+        Random random = new Random();
+        List<WebElement> list = select.getOptions();
+        int optionIndex = 1 + random.nextInt(list.size() - 1);
+        select.selectByIndex(optionIndex);
+        return select.getFirstSelectedOption();
+    }
+
+    //    DROPDOWN: accepts dropdown element and returns all selected element texts as an arraylist
+    public ArrayList<String> getDropdownSelectedOptions(WebElement element) throws Exception {
+        if (element!=null){
+            Select list = new Select(element);
+            ArrayList<WebElement> allSelectedOptions = (ArrayList<WebElement>) list.getAllSelectedOptions();
+            ArrayList<String> result = new ArrayList<String>();
+            for (WebElement eachSelected : allSelectedOptions){
+                result.add(eachSelected.getText());
+            }
+            return result;
+        }else {
+            throw new Exception("No element is returned");
+        }
+    }
+
+    //    VERIFY ELEMENT IS DISPLAYED
+    /**
+     * Verifies whether the element is displayed on page
+     * fails if the element is not found or not displayed
+     *
+     * @param element
+     */
+    public static void verifyElementDisplayed(WebElement element) {
+        try {
+            assertTrue("Element is not visible: " + element, element.isDisplayed());
+        } catch (NoSuchElementException e) {
+            Assert.fail("Element is not found: " + element);
+        }
+    }
+
+    /**
+     * Verifies whether the element matching the provided locator is displayed on page
+     * fails if the element matching the provided locator is not found or not displayed
+     *
+     * @param by
+     */
+    public static void verifyElementDisplayed(By by) {
+        try {
+            assertTrue("Element not visible: " + by, driver.findElement(by).isDisplayed());
+        } catch (NoSuchElementException e) {
+            Assert.fail("Element not found: " + by);
+        }
+    }
+
+    //VERIFY ELEMENT IS NOT DISPLAYED
+    /**
+     * Verifies whether the element matching the provided locator is NOT displayed on page
+     * fails if the element matching the provided locator is not found or not displayed
+     *
+     * @param by
+     */
+    public static void verifyElementNotDisplayed(By by) {
+        try {
+            assertFalse("Element should not be visible: " + by, driver.findElement(by).isDisplayed());
+        } catch (NoSuchElementException e) {
+            e.printStackTrace();
+        }
+    }
+    /**
+     * Verifies whether the element matching the provided WebElement is NOT displayed on page
+     * fails if the element matching the WebElement is not found or not displayed
+     * @paramWebElement
+     */
+    public static void verifyElementNotDisplayed(WebElement element) {
+        try {
+            assertFalse("Element should not be visible: " + element, element.isDisplayed());
+        } catch (NoSuchElementException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void verifyElementClickable(WebElement element) {
+        try {
+            assertTrue("Element not visible: " + element, element.isEnabled());
+        } catch (NoSuchElementException e) {
+            e.printStackTrace();
+            Assert.fail("Element not found: " + element);
+
+        }
+    }
+    public static void verifyElementNotClickable(WebElement element) {
+        try {
+            assertFalse("Element not visible: " + element, element.isEnabled());
+        } catch (NoSuchElementException e) {
+            e.printStackTrace();
+        }
+    }
+
+    //    ALERT
+    public void acceptAlert() throws InterruptedException {
+        driver.switchTo().alert().accept();
+    }
+    public void dismissAlert() throws InterruptedException {
+        driver.switchTo().alert().accept();
+    }
+    //    IFRAME
+    public static void switchIframeByWebElement(String xpath){
+        WebElement iframeElement = driver.findElement(By.xpath(xpath));
+        driver.switchTo().frame(iframeElement);
+    }
+    //    IFRAME
+    public static void switchIframeByIndex(int index){
+        driver.switchTo().frame(index);
+    }
+    //    MULTIPLE WINDOW !!!
+    public static void switchToWindowByTitle(String targetTitle) {
+        String origin = driver.getWindowHandle();
+        for (String childWindow : driver.getWindowHandles()) {
+            driver.switchTo().window(childWindow);
+            if (driver.getTitle().equals(targetTitle)) {
+                System.out.println("Switched to the window : "+targetTitle);
+                return;
+            }
+        }
+        driver.switchTo().window(origin);
+    }
+    //    windowNumber starts at (0)
+    public static void switchToWindow(int windowNumber){
+        List<String> list = new ArrayList<>(driver.getWindowHandles());
+        driver.switchTo().window(list.get(windowNumber));
+    }
+    //    ACTIONS_RIGHT CLICK
+    public static void rightClickOnElementActions(WebElement element) {
+        Actions actions = new Actions(driver);
+        actions.contextClick(element).perform();
+    }
+    //ACTIONS_DOUBLE CLICK
+    public static void doubleClick(WebElement element) {
+        new Actions(driver).doubleClick(element).build().perform();
+    }
+    //    ACTIONS_HOVER_OVER
+    public static void hoverOverOnElementActions(WebElement element) {
+        //        Actions actions = new Actions(driver);
+        new Actions(driver).moveToElement(element).perform();
+    }
+    //    ACTIONS_SCROLL_DOWN
+    public static void scrollDownActions() {
+        //        Actions actions = new Actions(driver);
+        new Actions(driver).sendKeys(Keys.PAGE_DOWN).perform();
+    }
+    //    ACTIONS_SCROLL_UP
+    public static void scrollUpActions() {
+        //        Actions actions = new Actions(driver);
+        new Actions(driver).sendKeys(Keys.PAGE_UP).perform();
+    }
+    //    ACTIONS_SCROLL_RIGHT
+    public static void scrollRightActions(){
+        new Actions(driver).sendKeys(Keys.ARROW_RIGHT).sendKeys(Keys.ARROW_RIGHT).perform();
+    }
+    //    ACTIONS_SCROLL_LEFT
+    public static void scrollLeftActions(){
+        new Actions(driver).sendKeys(Keys.ARROW_LEFT).sendKeys(Keys.ARROW_LEFT).perform();
+    }
+    //    ACTIONS_DRAG_AND_DROP
+    public static void dragAndDropActions(WebElement source, WebElement target) {
+        //        Actions actions = new Actions(driver);
+        new Actions(driver).dragAndDrop(source,target).perform();
+    }
+    //    ACTIONS_DRAG_AND_DROP_BY
+    public static void dragAndDropActions(WebElement source, int x, int y) {
+        //        Actions actions = new Actions(driver);
+        new Actions(driver).dragAndDropBy(source,x,y).perform();
+    }
+    //    Accept a URL and navigates to that page
+    public static void openURL(String url){
+        driver.get(url);
+    }
+
+    //    Java Faker
+    public static Faker getFaker(){
+        return new Faker();
+    }
+
+
 }
 
